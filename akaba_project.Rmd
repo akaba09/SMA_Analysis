@@ -1,0 +1,199 @@
+---
+title: 'Project: Facebook and Costco stock Simple Moving Average (SMA)'
+author: "Aminata Kaba"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+## Read in Data
+```{r}
+# load libraries to read csv and handle format (date and strings)
+library(dplyr)
+library(stringr)
+library(readr)
+library(lubridate)   
+
+# load Facebook stock data
+fb_stock <- read_csv('Downloads/FB.csv', show_col_types = FALSE)
+
+# clean FB stock data
+fb_stock <- fb_stock %>%
+  mutate(
+    Date = mdy(Date),  # change Date column to YY-DD-MM
+    Close = as.numeric(str_replace_all(Close, "\\$", "")),  # remove $ 
+  ) %>%
+  filter(!is.na(Date)) %>%  # remove Dates with NA 
+  select(Date, Close)  # select relevant columns
+
+print(fb_stock)
+```
+
+## Clean data 
+```{r}
+#load Costco stock data
+costco_stock <- read_csv("Downloads/COST.csv", show_col_types = FALSE)
+
+#clean FB stock data
+costco_stock <- costco_stock %>%
+    mutate(
+    Date = mdy(Date),  # change Date column to YY-DD-MM
+    Close = as.numeric(str_replace_all(Close, "\\$", "")),  # remove $ 
+  ) %>%
+  filter(!is.na(Date)) %>%  # Remove Dates with NA
+  select(Date, Close)  # select relevant columns
+ 
+
+print(costco_stock)
+```
+
+## Drop Nas
+```{r}
+#load library to drop NAs
+library(tidyverse)
+
+#combine stocks by Date
+merged_stock <- full_join(costco_stock, fb_stock, by = "Date", suffix = c("_COST", "_FB"))
+
+#drop rows with NA
+merged_stock <- merged_stock %>% 
+  drop_na()
+
+#print cleaned merged dataset
+print(merged_stock)
+```
+
+## Summary Statistics
+```{r}
+#load library for table
+library(knitr)
+
+#summary statistics for Costco
+costco_summary <- merged_stock %>%
+  summarize(
+    Mean_Close = mean(Close_COST),
+    Min_Close = min(Close_COST),
+    Max_Close = max(Close_COST)
+  )
+
+#summary statistics for Facebook
+fb_summary <- merged_stock %>%
+  summarize(
+    Mean_Close = mean(Close_FB),
+    Min_Close = min(Close_FB),
+    Max_Close = max(Close_FB)
+  )
+
+#summary table 
+summary <- rbind(
+  cbind(Company = "Costco", costco_summary),
+  cbind(Company = "Facebook", fb_summary)
+)
+
+#kable to create table
+kable(summary)
+```
+## Calculating 10-day and 50-day Simple Moving Averages (SMA)
+```{r}
+#finding 10-day Simple Moving Average (SMA) for Costco
+sma10_costco <- rep(NA, nrow(merged_stock)) # create vector for SMA10
+for (i in 10:nrow(merged_stock)) {
+    sma10_costco[i] <- mean(merged_stock$Close_COST[(i - 9):i]) # assign SMA value
+}
+merged_stock$SMA10_COST <- sma10_costco # add Costco SMA10 to dataset
+
+
+
+#finding 10-day SMA for Facebook
+sma10_fb <- rep(NA, nrow(merged_stock)) #create vector for SMA10
+for (i in 10:nrow(merged_stock)) {
+    sma10_fb[i] <- mean(merged_stock$Close_FB[(i - 9):i]) # assign SMA value
+}
+merged_stock$SMA10_FB <- sma10_fb # add Facebook SMA10
+```
+
+## Calculating 50-day Simple Moving Averages (SMA)
+```{r}
+#finding Costco SMA50
+sma50_costco <- rep(NA, nrow(merged_stock)) # vector for SMA50
+for (i in 50:nrow(merged_stock)) {
+    sma50_costco[i] <- mean(merged_stock$Close_COST[(i - 49):i]) # assign value
+}
+merged_stock$SMA50_COST <- sma50_costco # add Costco SMA10 to dataset
+
+
+#finding Facebook SMA50
+sma50_fb <- rep(NA, nrow(merged_stock)) # vector for SMA50
+for (i in 50:nrow(merged_stock)) {
+    sma50_fb[i] <- mean(merged_stock$Close_FB[(i - 49):i]) # assign SMA value
+}
+merged_stock$SMA50_FB <- sma50_fb # add Facebook SMA50
+
+```
+
+## Make Plots
+```{r}
+#ggplot2 and tidyr to plot and data manipulation
+library(ggplot2)
+library(tidyr)
+
+#plots to compare Costco and Facebook stock prices with their SMAs
+ggplot(merged_stock, aes(x = Date)) +
+  
+  #Costco stock price line
+  geom_line(aes(y = Close_COST, color = "Costco Stock Price"), linewidth = 1) + 
+  
+  #10-day Costco SMA
+  geom_line(aes(y = SMA10_COST, color = "Costco SMA10 (10-day)"), linetype = "dashed") + 
+  
+  #50-day Costco SMA 
+  geom_line(aes(y = SMA50_COST, color = "Costco SMA50 (50-day)"), linetype = "dotdash") + 
+  
+  
+  
+
+  #Facebook stock price 
+  geom_line(aes(y = Close_FB, color = "Facebook Stock Price"), linewidth = 1) + 
+  
+  #10-day Facebook SMA
+  geom_line(aes(y = SMA10_FB, color = "Facebook SMA10 (10-day)"), linetype = "dashed") + 
+  
+  #50-day Facebook SMA for Facebook
+  geom_line(aes(y = SMA50_FB, color = "Facebook SMA50 (50-day)"), linetype = "dotdash") + 
+  
+  
+  #colors for the lines
+  scale_color_manual(values = c(
+    "Costco Stock Price" = "blue", 
+    "Costco SMA10 (10-day)" = "red", 
+    "Costco SMA50 (50-day)" = "green", 
+    "Facebook Stock Price" = "orange", 
+    "Facebook SMA10 (10-day)" = "purple", 
+    "Facebook SMA50 (50-day)" = "brown"
+  )) + 
+  
+  #title and labels 
+  labs(title = "Costco and Facebook Stock Prices with SMA10 and SMA50", 
+       x = "Date", 
+       y = "Price (USD)") + 
+  
+  #theme for plot
+  theme_minimal() + 
+  
+  #rotate x-axis labels 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+## Costco Linear Regression Model
+```{r}
+#costco regression model 
+lm_costco <- lm(Close_COST ~ Date + SMA10_COST + SMA50_COST, data = merged_stock)
+summary(lm_costco)
+```
+## Facebooks Linear Regression Model
+```{r}
+#facebook regression model 
+lm_fb <- lm(Close_FB ~ Date + SMA10_FB + SMA50_FB, data = merged_stock)
+summary(lm_fb)
+```
+
+##Analysis and Findings
+In the regression analyses for Costco and Facebook, we see how their closing stock prices are influenced by time and Simple Moving Averages (SMA10 and SMA50). For Costco, the model explains about 98.44 percent of the variability in its closing price, with significant daily increases of approximately 0.495 dollars. The 10-day SMA shows a strong positive impact, indicating that for every 1 dollar increase, the stock price rises by about 0.981 dollars. However, the 50-day SMA shows a negative relationship, suggesting a decrease in price when long-term averages rises. Facebook's model similarily accounts for 96.76 percent of its price variability, with daily increases around 0.148 dollars and a 1 dollar increase in the 10-day SMA correlating with a price increase of about 1.035 dollars. But just like Costco, its long-term SMA negatively affects the stock price. Overall, both companies show an upward trend, with short-term SMAs indicating positive market performance. However, the negative impact of long-term averages raises some alarms/caution, suggesting that while recent trends may signal buying opportunities, investors should remain careful about potential changes in the market.
