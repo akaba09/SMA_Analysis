@@ -14,7 +14,7 @@ library(readr)
 library(lubridate)   
 
 # load Facebook stock data
-fb_stock <- read_csv('Downloads/FB.csv', show_col_types = FALSE)
+fb_stock <- read_csv('FB.csv', show_col_types = FALSE)
 
 # clean FB stock data
 fb_stock <- fb_stock %>%
@@ -31,7 +31,7 @@ print(fb_stock)
 ## Clean data 
 ```{r}
 #load Costco stock data
-costco_stock <- read_csv("Downloads/COST.csv", show_col_types = FALSE)
+costco_stock <- read_csv("COST.csv", show_col_types = FALSE)
 
 #clean FB stock data
 costco_stock <- costco_stock %>%
